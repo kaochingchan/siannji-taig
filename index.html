@@ -98,9 +98,66 @@
       fill: var(--stroke-color);
     }
 
-    /* Layer 3 – design PNG, on top, non-interactive */
+    /* Layer 3 – practice: interactive tracing overlay */
+    .layer-practice {
+      display: none;
+      z-index: 3;
+      touch-action: none;
+    }
+    .layer-practice.active {
+      display: block;
+    }
+    .layer-practice svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      touch-action: none;
+    }
+    .practice-hint-path {
+      fill: #e986b8;
+      opacity: 0.42;
+      animation: hintPulse 1.2s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    .practice-trace-path {
+      fill: none;
+      stroke: #4a9e5c;
+      stroke-width: 28;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.92;
+      pointer-events: none;
+    }
+    @keyframes hintPulse {
+      from { opacity: 0.26; }
+      to   { opacity: 0.52; }
+    }
+    .practice-error {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0.96);
+      background: rgba(199, 57, 57, 0.94);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-size: clamp(14px, 3vw, 17px);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+    .practice-error.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Layer 4 – design PNG, on top, non-interactive */
     .layer-design {
       pointer-events: none;
+      z-index: 4;
     }
     .layer-design img {
       width: 100%;
@@ -199,6 +256,7 @@
       flex: 1;
     }
     .btn-secondary:hover { background: #f5f5f5; }
+    .btn-secondary.is-hidden { display: none; }
 
     /* Speed buttons */
     .speed-row {
@@ -233,6 +291,10 @@
       background: #f0f0f0;
       border-radius: 8px;
       padding: 3px;
+    }
+    .mode-row.is-hidden,
+    .speed-row.is-hidden {
+      display: none;
     }
     .btn-mode {
       flex: 1;
@@ -381,7 +443,16 @@
       </svg>
     </div>
 
-    <!-- Layer 3: Design PNG (on top, pointer-events:none) -->
+    <!-- Layer 3: Practice SVG (interactive tracing overlay) -->
+    <div class="layer layer-practice" id="practice-layer">
+      <svg id="practice-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 835.63 1352.64" aria-label="手寫練習區">
+        <g id="practice-hint-layer"></g>
+        <g id="practice-ink-layer"></g>
+      </svg>
+    </div>
+    <div class="practice-error" id="practice-error" role="status" aria-live="polite"></div>
+
+    <!-- Layer 4: Design PNG (on top, pointer-events:none) -->
     <div class="layer layer-design">
       <img src="Stroke_Template_color.png" alt="">
     </div>
@@ -410,10 +481,22 @@
 <!-- ── Controls ───────────────────────────────── -->
 <div class="controls">
 
-  <!-- Mode toggle -->
+  <!-- Primary mode toggle -->
   <div class="mode-row">
+    <button class="btn btn-mode active" id="category-teaching" onclick="setCategory('teaching')">教學模式</button>
+    <button class="btn btn-mode"        id="category-writing"  onclick="setCategory('writing')">手寫模式</button>
+  </div>
+
+  <!-- Teaching submodes -->
+  <div class="mode-row" id="teaching-modes">
     <button class="btn btn-mode active" id="mode-auto" onclick="setMode('auto')">▶ 自動播放</button>
     <button class="btn btn-mode"        id="mode-step" onclick="setMode('step')">手動逐畫</button>
+  </div>
+
+  <!-- Writing submodes -->
+  <div class="mode-row is-hidden" id="writing-modes">
+    <button class="btn btn-mode active" id="mode-trace" onclick="setMode('trace')">✍ 描紅</button>
+    <button class="btn btn-mode"        id="mode-free"  onclick="setMode('free')">無提示</button>
   </div>
 
   <!-- Main buttons -->
@@ -421,6 +504,7 @@
     <button class="btn btn-secondary" id="btn-reset" onclick="resetAll()">重新開始</button>
     <button class="btn btn-primary" id="btn-play" onclick="togglePlay()">播放</button>
     <button class="btn btn-secondary" id="btn-step" onclick="stepOne()" disabled>下一畫</button>
+    <button class="btn btn-secondary is-hidden" id="btn-clear-trace" onclick="clearCurrentWritingStroke()">重寫這一畫</button>
   </div>
 
   <!-- Speed -->
@@ -470,8 +554,15 @@
   let currentIndex = 0;
   let isPlaying    = false;
   let mode         = 'auto';
+  let lastTeachingMode = 'auto';
+  let lastWritingMode  = 'trace';
   let speed        = SPEEDS.normal;
   let autoTimer    = null;
+  let activeTracePath = null;
+  let activeTracePoints = [];
+  let activePointerId = null;
+  let practiceHintPath = null;
+  let practiceErrorTimer = null;
 
   /* ── DOM refs ───────────────────────────── */
   const allPaths      = [...document.querySelectorAll('.stroke-path')];
@@ -481,6 +572,13 @@
   const infoCurrent   = document.getElementById('info-current');
   const progressFill  = document.getElementById('progress-fill');
   const doneBanner    = document.getElementById('done-banner');
+  const practiceLayer = document.getElementById('practice-layer');
+  const practiceSvg   = document.getElementById('practice-svg');
+  const hintLayer     = document.getElementById('practice-hint-layer');
+  const inkLayer      = document.getElementById('practice-ink-layer');
+  const btnClearTrace = document.getElementById('btn-clear-trace');
+  const practiceError = document.getElementById('practice-error');
+  const speedRow      = document.querySelector('.speed-row');
 
   /* ── Easing ─────────────────────────────── */
   function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
@@ -593,10 +691,22 @@
     return CHARS[ci].char + '（' + CHARS[ci].romanization + '）• 第 ' + sn + ' 畫';
   }
 
+  function isWritingMode() {
+    return mode === 'trace' || mode === 'free';
+  }
+
+  function isTraceMode() {
+    return mode === 'trace';
+  }
+
   function updateUI() {
     infoProgress.textContent = currentIndex + ' / ' + TOTAL + ' 畫';
     progressFill.style.width = (currentIndex / TOTAL * 100) + '%';
-    if      (currentIndex === 0)        infoCurrent.textContent = '準備開始';
+    if      (isTraceMode() && currentIndex < TOTAL)
+                                            infoCurrent.textContent = '請描：' + charLabel(currentIndex);
+    else if (mode === 'free' && currentIndex < TOTAL)
+                                            infoCurrent.textContent = '請寫下一畫';
+    else if (currentIndex === 0)        infoCurrent.textContent = '準備開始';
     else if (currentIndex >= TOTAL)     infoCurrent.textContent = '完成！';
     else                                infoCurrent.textContent = charLabel(currentIndex - 1);
     btnPlay.textContent = isPlaying ? '暫停' : '播放';
@@ -688,6 +798,192 @@
     else              animateSimple(path, onComplete);
   }
 
+  /* ── Practice mode: hint + tracing overlay ─ */
+  function showPracticeHint(index) {
+    clearPracticeHint();
+    if (!isTraceMode()) return;
+    if (index >= TOTAL) return;
+    const source = getPath(index);
+    if (!source) return;
+    practiceHintPath = source.cloneNode(false);
+    practiceHintPath.removeAttribute('id');
+    practiceHintPath.removeAttribute('clip-path');
+    practiceHintPath.removeAttribute('style');
+    practiceHintPath.setAttribute('class', 'practice-hint-path');
+    hintLayer.appendChild(practiceHintPath);
+    infoCurrent.textContent = '請描：' + charLabel(index);
+  }
+
+  function clearPracticeHint() {
+    hintLayer.replaceChildren();
+    practiceHintPath = null;
+  }
+
+  function clearCurrentTrace() {
+    activeTracePath = null;
+    activeTracePoints = [];
+    activePointerId = null;
+    inkLayer.replaceChildren();
+  }
+
+  function resetStrokeVisual(path) {
+    path.style.transition = 'none';
+    path.style.fill = INK_COLOR;
+    if (path._isFold) {
+      path._foldRectA.setAttribute('width', 0);
+      if (path._foldIsFlat) {
+        path._foldRectB.setAttribute('y', path._foldRectBBot);
+        path._foldRectB.setAttribute('height', 0);
+      } else {
+        path._foldRectB.setAttribute('height', 0);
+      }
+    } else if (path._clipRect) {
+      path._clipRect.setAttribute(path._animProp, 0);
+    }
+  }
+
+  function clearCurrentWritingStroke() {
+    if (!isWritingMode()) return;
+
+    // If the learner is still drawing, erase that live attempt first.
+    if (activeTracePoints.length > 0) {
+      clearCurrentTrace();
+      return;
+    }
+
+    // After a stroke has already been accepted, "clear this stroke" means undo
+    // the most recently completed stroke so it can be written again.
+    if (currentIndex === 0) return;
+    doneBanner.classList.remove('show');
+    currentIndex -= 1;
+    resetStrokeVisual(getPath(currentIndex));
+    clearCurrentTrace();
+    clearPracticeHint();
+    if (isTraceMode()) showPracticeHint(currentIndex);
+    updateUI();
+  }
+
+  function svgPointFromEvent(e) {
+    const pt = practiceSvg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    return pt.matrixTransform(practiceSvg.getScreenCTM().inverse());
+  }
+
+  function appendTracePoint(point) {
+    activeTracePoints.push(point);
+    const d = activeTracePoints
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+      .join(' ');
+    activeTracePath.setAttribute('d', d);
+  }
+
+  function traceDistance(points) {
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+      total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    }
+    return total;
+  }
+
+  function showPracticeError(message) {
+    clearTimeout(practiceErrorTimer);
+    practiceError.textContent = message;
+    practiceError.classList.add('show');
+    practiceErrorTimer = setTimeout(() => practiceError.classList.remove('show'), 1100);
+  }
+
+  function bboxContainsPoint(bb, point, pad = 0) {
+    return point.x >= bb.x - pad &&
+           point.x <= bb.x + bb.width + pad &&
+           point.y >= bb.y - pad &&
+           point.y <= bb.y + bb.height + pad;
+  }
+
+  function pointHitsStroke(path, point, pad = 18) {
+    return Boolean(path?.isPointInFill?.(point)) ||
+           Boolean(path?._bbox && bboxContainsPoint(path._bbox, point, pad));
+  }
+
+  function strokeIndexAtPoint(point) {
+    // Prefer exact SVG fill hit-testing. The padded bbox fallback keeps interaction forgiving
+    // when a finger lands just outside the visible glyph edge.
+    for (let i = 0; i < allPaths.length; i++) {
+      const path = getPath(i);
+      if (!path) continue;
+      if (path.isPointInFill?.(point)) return i;
+    }
+    for (let i = 0; i < allPaths.length; i++) {
+      const path = getPath(i);
+      if (path?._bbox && bboxContainsPoint(path._bbox, point, 18)) return i;
+    }
+    return -1;
+  }
+
+  function completePracticeStroke() {
+    // v0 only confirms that the learner actually dragged a visible stroke.
+    // Shape / direction validation can be inserted here later without changing the UI flow.
+    if (activeTracePoints.length < 2 || traceDistance(activeTracePoints) < 18) {
+      clearCurrentTrace();
+      return;
+    }
+
+    const completedIndex = currentIndex;
+    clearCurrentTrace();
+    clearPracticeHint();
+    revealStroke(completedIndex, () => {
+      if (currentIndex >= TOTAL) {
+        setTimeout(() => { doneBanner.classList.add('show'); playPronunciation(); }, 700);
+        return;
+      }
+      if (isTraceMode()) showPracticeHint(currentIndex);
+      else updateUI();
+    });
+  }
+
+  practiceSvg.addEventListener('pointerdown', e => {
+    if (!isWritingMode() || currentIndex >= TOTAL) return;
+    e.preventDefault();
+    const startPoint = svgPointFromEvent(e);
+    const expectedPath = getPath(currentIndex);
+    if (!pointHitsStroke(expectedPath, startPoint)) {
+      const touchedStrokeIndex = strokeIndexAtPoint(startPoint);
+      const expectedStroke = (currentIndex % 8) + 1;
+      const message = touchedStrokeIndex === -1
+        ? '請從第 ' + expectedStroke + ' 畫開始'
+        : '筆順錯誤，請先描第 ' + expectedStroke + ' 畫';
+      showPracticeError(message);
+      clearCurrentTrace();
+      return;
+    }
+    clearCurrentTrace();
+    activePointerId = e.pointerId;
+    practiceSvg.setPointerCapture(e.pointerId);
+    activeTracePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    activeTracePath.setAttribute('class', 'practice-trace-path');
+    inkLayer.appendChild(activeTracePath);
+    appendTracePoint(startPoint);
+  });
+
+  practiceSvg.addEventListener('pointermove', e => {
+    if (!isWritingMode() || e.pointerId !== activePointerId || !activeTracePath) return;
+    e.preventDefault();
+    appendTracePoint(svgPointFromEvent(e));
+  });
+
+  function finishPracticePointer(e) {
+    if (!isWritingMode() || e.pointerId !== activePointerId || !activeTracePath) return;
+    e.preventDefault();
+    practiceSvg.releasePointerCapture?.(e.pointerId);
+    completePracticeStroke();
+  }
+
+  practiceSvg.addEventListener('pointerup', finishPracticePointer);
+  practiceSvg.addEventListener('pointercancel', e => {
+    if (e.pointerId !== activePointerId) return;
+    clearCurrentTrace();
+  });
+
   /* ── Auto play ──────────────────────────── */
   function scheduleNext() {
     if (currentIndex >= TOTAL) {
@@ -722,33 +1018,50 @@
     clearTimeout(autoTimer);
     currentIndex = 0;
     doneBanner.classList.remove('show');
-    allPaths.forEach(p => {
-      p.style.transition = 'none';
-      p.style.fill = INK_COLOR;
-      if (p._isFold) {
-        p._foldRectA.setAttribute('width',  0);
-        if (p._foldIsFlat) {
-          p._foldRectB.setAttribute('y',      p._foldRectBBot);
-          p._foldRectB.setAttribute('height', 0);
-        } else {
-          p._foldRectB.setAttribute('height', 0);
-        }
-      } else if (p._clipRect) {
-        p._clipRect.setAttribute(p._animProp, 0);
-      }
-    });
+    allPaths.forEach(resetStrokeVisual);
+    clearCurrentTrace();
+    clearPracticeHint();
+    practiceError.classList.remove('show');
+    if (isTraceMode()) showPracticeHint(0);
     updateUI();
   }
 
   /* ── Mode / Speed ───────────────────────── */
+  function setCategory(category) {
+    const nextMode = category === 'teaching' ? lastTeachingMode : lastWritingMode;
+    setMode(nextMode);
+  }
+
   function setMode(m) {
     mode = m;
+    if (m === 'auto' || m === 'step') lastTeachingMode = m;
+    if (m === 'trace' || m === 'free') lastWritingMode = m;
+
+    const isTeaching = m === 'auto' || m === 'step';
+    const isWriting  = isWritingMode();
     isPlaying = false;
     clearTimeout(autoTimer);
+    document.getElementById('category-teaching').classList.toggle('active', isTeaching);
+    document.getElementById('category-writing').classList.toggle('active', isWriting);
+    document.getElementById('teaching-modes').classList.toggle('is-hidden', !isTeaching);
+    document.getElementById('writing-modes').classList.toggle('is-hidden', !isWriting);
     document.getElementById('mode-auto').classList.toggle('active', m === 'auto');
     document.getElementById('mode-step').classList.toggle('active', m === 'step');
+    document.getElementById('mode-trace').classList.toggle('active', m === 'trace');
+    document.getElementById('mode-free').classList.toggle('active', m === 'free');
     btnPlay.style.display = m === 'auto' ? '' : 'none';
     btnStep.style.display = m === 'step' ? '' : 'none';
+    btnClearTrace.classList.toggle('is-hidden', !isWriting);
+    practiceLayer.classList.toggle('active', isWriting);
+    speedRow.classList.toggle('is-hidden', isWriting);
+    if (isWriting) {
+      resetAll();
+      if (isTraceMode()) infoCurrent.textContent = '請描：' + charLabel(0);
+      else               infoCurrent.textContent = '請寫下一畫';
+    } else {
+      clearCurrentTrace();
+      clearPracticeHint();
+    }
     updateUI();
   }
 
