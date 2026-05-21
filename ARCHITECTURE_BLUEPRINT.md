@@ -112,7 +112,8 @@ animation: {
 屆時可再拆成：
 
 ```text
-index.html
+index.html          ← 選單首頁
+writing.html        ← 互動主體
 data/vocabularies.js
 js/player.js
 js/practice.js

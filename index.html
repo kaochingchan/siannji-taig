@@ -3,1143 +3,194 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>看無字有聲 — 台語筆畫教學測試版</title>
+  <title>看無字有聲 — 台語詞彙筆畫教學</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Huninn&display=swap" rel="stylesheet">
+  <script src="vocabularies.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --card-w: 835.63;
-      --card-h: 1352.64;
-      --aspect: calc(835.63 / 1352.64);
-      --stroke-color: #1a1a2e;
-      --bg: #f5f0e8;
-      --purple: #6b3fa0;
-      --green: #4a9e5c;
-      --ctrl-bg: #fff;
-      --ctrl-border: #e0d8cc;
-      --transition-slow: 1200ms;
-      --transition-normal: 600ms;
-      --transition-fast: 280ms;
-      --font-huninn: 'Huninn', 'PingFang TC', 'Heiti TC', sans-serif;
+      --purple:       #6b3fa0;
+      --purple-light: #ede5f8;
+      --bg:           #f5f0e8;
+      --card-bg:      #ffffff;
+      --border:       #e8e2da;
+      --text-main:    #1a1a2e;
+      --text-sub:     #888;
+      --font:         'Huninn', 'PingFang TC', 'Heiti TC', sans-serif;
+      --radius:       20px;
+      --shadow:       0 4px 16px rgba(0, 0, 0, 0.08);
+      --shadow-hover: 0 12px 36px rgba(107, 63, 160, 0.18);
     }
 
     html, body {
       height: 100%;
       background: #ffffff;
-      font-family: var(--font-huninn);
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100dvh;
-      padding: 16px;
-      gap: 16px;
+      font-family: var(--font);
+      color: var(--text-main);
     }
 
     /* ── Header ──────────────────────────────── */
-    header {
-      text-align: center;
-      color: var(--purple);
-    }
-    header h1 {
-      font-size: clamp(18px, 4vw, 28px);
-      font-weight: 700;
-      letter-spacing: 0.05em;
-    }
-    header p {
-      font-size: clamp(11px, 2.5vw, 14px);
-      opacity: 0.65;
-      margin-top: 2px;
-    }
-
-    /* ── Card wrapper — maintains aspect ratio ── */
-    .card-wrap {
-      position: relative;
-      width: min(360px, calc(100vw - 32px));
-      flex-shrink: 0;
-    }
-    /* aspect-ratio via padding-top trick for older Safari */
-    .card-aspect {
-      width: 100%;
-      padding-top: calc(100% / (835.63 / 1352.64));
-      position: relative;
-    }
-
-    /* ── All three layers sit inside .card-aspect ── */
-    .layer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Layer 1 – guide: full character outlines at low opacity */
-    .layer-guide svg {
-      width: 100%;
-      height: 100%;
-    }
-    .layer-guide .guide-path {
-      fill: var(--stroke-color);
-      opacity: 0.08;
-    }
-
-    /* Layer 2 – animation: strokes revealed via clipPath sweep */
-    .layer-anim svg {
-      width: 100%;
-      height: 100%;
-    }
-    /* Paths hidden by clip-path (not opacity); fill transitions for ink settle */
-    .layer-anim .stroke-path {
-      fill: var(--stroke-color);
-    }
-
-    /* Layer 3 – practice: interactive tracing overlay */
-    .layer-practice {
-      display: none;
-      z-index: 3;
-      touch-action: none;
-    }
-    .layer-practice.active {
-      display: block;
-    }
-    .layer-practice svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-      touch-action: none;
-    }
-    .practice-hint-path {
-      fill: #e986b8;
-      opacity: 0.42;
-      animation: hintPulse 1.2s ease-in-out infinite alternate;
-      pointer-events: none;
-    }
-    .practice-trace-path {
-      fill: none;
-      stroke: #4a9e5c;
-      stroke-width: 28;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      opacity: 0.92;
-      pointer-events: none;
-    }
-    @keyframes hintPulse {
-      from { opacity: 0.26; }
-      to   { opacity: 0.52; }
-    }
-    .practice-error {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%) scale(0.96);
-      background: rgba(199, 57, 57, 0.94);
-      color: #fff;
-      padding: 12px 18px;
-      border-radius: 999px;
-      font-size: clamp(14px, 3vw, 17px);
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 5;
-      transition: opacity 160ms ease, transform 160ms ease;
-    }
-    .practice-error.show {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    /* Layer 4 – design PNG, on top, non-interactive */
-    .layer-design {
-      pointer-events: none;
-      z-index: 4;
-    }
-    .layer-design img {
-      width: 100%;
-      height: 100%;
-      object-fit: fill;
-      display: block;
-    }
-
-    /* ── Stroke info bar ─────────────────────── */
-    .stroke-info {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: min(360px, calc(100vw - 32px));
-      padding: 8px 12px;
-      background: var(--ctrl-bg);
-      border: 1px solid var(--ctrl-border);
-      border-radius: 8px;
-      font-size: 13px;
-      color: #444;
-    }
-    .stroke-info .char-label {
-      font-weight: 700;
-      color: var(--purple);
-      font-size: 15px;
-    }
-    .stroke-info .progress {
-      font-variant-numeric: tabular-nums;
-    }
-    .stroke-info .current-char {
-      font-size: 12px;
-      color: #888;
-    }
-
-    /* Progress bar */
-    .progress-track {
-      width: min(360px, calc(100vw - 32px));
-      height: 4px;
-      background: #ddd;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--purple);
-      border-radius: 2px;
-      transition: width 300ms ease;
-      width: 0%;
-    }
-
-    /* ── Controls ────────────────────────────── */
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      width: min(360px, calc(100vw - 32px));
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    .btn {
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: inherit;
-      font-weight: 600;
-      transition: background 150ms, transform 80ms;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn:active { transform: scale(0.96); }
-
-    .btn-primary {
-      background: var(--purple);
-      color: #fff;
-      font-size: 16px;
-      padding: 12px 28px;
-      flex: 1;
-      max-width: 160px;
-    }
-    .btn-primary:hover { background: #5a339a; }
-    .btn-primary:disabled {
-      background: #bbb;
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      background: var(--ctrl-bg);
-      color: #444;
-      font-size: 14px;
-      padding: 10px 18px;
-      border: 1px solid var(--ctrl-border);
-      flex: 1;
-    }
-    .btn-secondary:hover { background: #f5f5f5; }
-    .btn-secondary.is-hidden { display: none; }
-
-    /* Speed buttons */
-    .speed-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      justify-content: center;
-    }
-    .speed-label {
-      font-size: 12px;
-      color: #888;
-      min-width: 28px;
-    }
-    .btn-speed {
-      background: var(--ctrl-bg);
-      color: #666;
-      font-size: 12px;
-      padding: 6px 14px;
-      border: 1px solid var(--ctrl-border);
-      border-radius: 6px;
-    }
-    .btn-speed.active {
-      background: var(--purple);
-      color: #fff;
-      border-color: var(--purple);
-    }
-
-    /* Mode toggle */
-    .mode-row {
-      display: flex;
-      gap: 4px;
-      background: #f0f0f0;
-      border-radius: 8px;
-      padding: 3px;
-    }
-    .mode-row.is-hidden,
-    .speed-row.is-hidden {
-      display: none;
-    }
-    .btn-mode {
-      flex: 1;
-      background: transparent;
-      color: #666;
-      font-size: 12px;
-      padding: 7px 4px;
-      border-radius: 6px;
-      border: none;
-    }
-    .btn-mode.active {
-      background: #fff;
-      color: var(--purple);
-      font-weight: 700;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    /* ── Pronunciation button ───────────────── */
-    .pronunciation-wrap {
+    .site-header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 40px 24px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 6px;
-      width: min(360px, calc(100vw - 32px));
-      padding: 8px 0 4px;
-    }
-    .btn-pronunciation {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--purple);
-      color: #fff;
-      border: none;
-      border-radius: 50px;
-      padding: 14px 28px;
-      font-family: var(--font-huninn);
-      font-size: 16px;
-      cursor: pointer;
-      transition: background 150ms, transform 80ms, box-shadow 150ms;
-      box-shadow: 0 2px 8px rgba(107,63,160,0.25);
-      -webkit-tap-highlight-color: transparent;
-      width: 100%;
-      justify-content: center;
-    }
-    .btn-pronunciation:hover { background: #5a339a; box-shadow: 0 4px 14px rgba(107,63,160,0.35); }
-    .btn-pronunciation:active { transform: scale(0.97); }
-    .btn-pronunciation.playing .icon-speaker { animation: pulse 0.6s ease infinite alternate; }
-    .btn-pronunciation .icon-speaker { font-size: 20px; flex-shrink: 0; }
-    .btn-pronunciation .pron-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
-    .btn-pronunciation .pron-main { font-size: 17px; letter-spacing: 0.1em; }
-    .btn-pronunciation .pron-sub  { font-size: 11px; opacity: 0.8; letter-spacing: 0.05em; }
-    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
-
-    /* ── Done overlay ────────────────────────── */
-    .done-banner {
-      display: none;
-      position: absolute;
-      inset: 0;
-      background: rgba(107, 63, 160, 0.88);
-      color: #fff;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 10px;
-      border-radius: 4px;
+      position: sticky;
+      top: 0;
       z-index: 10;
     }
-    .done-banner.show { display: flex; }
-    .done-banner .done-title {
-      font-family: var(--font-huninn);
-      font-size: clamp(36px, 10vw, 52px);
-      letter-spacing: 0.12em;
+    .site-header h1 {
+      font-size: clamp(22px, 3.5vw, 34px);
+      font-weight: 700;
+      color: var(--purple);
+      letter-spacing: 0.08em;
     }
-    .done-banner .done-sub {
-      font-family: var(--font-huninn);
-      font-size: clamp(14px, 3.5vw, 18px);
-      opacity: 0.9;
+    .site-header p {
+      font-size: clamp(12px, 1.8vw, 16px);
+      color: var(--text-sub);
+      letter-spacing: 0.04em;
     }
-    .done-banner .done-romanization {
-      font-size: clamp(18px, 5vw, 24px);
-      font-weight: 400;
-      letter-spacing: 0.15em;
-      opacity: 0.85;
+
+    /* ── Main grid area ─────────────────────── */
+    .page-body {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 32px 60px;
+    }
+
+    /* Instruction row */
+    .section-label {
+      font-size: 13px;
+      color: var(--text-sub);
+      letter-spacing: 0.06em;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Vocabulary grid ─────────────────────
+       Tablet-first: 2 columns (768px+)
+       Larger:       3 columns (1024px+)
+       Phone:        1 column  (< 600px)
+    ─────────────────────────────────────────── */
+    .vocab-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .vocab-grid { grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    }
+
+    @media (max-width: 599px) {
+      .page-body { padding: 24px 16px 48px; }
+      .vocab-grid { grid-template-columns: 1fr; gap: 16px; }
+      .site-header { padding: 20px 20px 16px; }
+    }
+
+    /* ── Vocabulary card ─────────────────────── */
+    .vocab-card {
+      background: #ffffff;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      text-decoration: none;
+      display: block;
+      transition: transform 220ms ease, box-shadow 220ms ease;
+      -webkit-tap-highlight-color: transparent;
+      border: 1.5px solid transparent;
+    }
+    .vocab-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(107, 63, 160, 0.18);
+    }
+    .vocab-card:active {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    /* Full image — natural portrait ratio, no cropping */
+    .vocab-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ── Loading skeleton ─────────────────────── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .card-skeleton {
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: #fff;
+      aspect-ratio: 595 / 964;
+    }
+    .card-skeleton-inner {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #f0ece6 25%, #f8f5f0 50%, #f0ece6 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite;
     }
   </style>
 </head>
 <body>
 
-<header>
+<header class="site-header">
   <h1>看無字有聲</h1>
-  <p>台語詞彙筆畫教學 — 測試版</p>
+  <p>台語詞彙筆畫教學 · 請選擇要練習的字帖</p>
 </header>
 
-<!-- Font load check: render hidden span to force Huninn to load before animation starts -->
-<span id="font-probe" aria-hidden="true" style="position:absolute;opacity:0;font-family:'Huninn';font-size:1px;">𨑨迌</span>
-
-<!-- ── Card ──────────────────────────────────── -->
-<div class="card-wrap">
-  <div class="card-aspect">
-
-    <!-- Layer 1: Guide (full character at 8% opacity) -->
-    <div class="layer layer-guide">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 835.63 1352.64" aria-hidden="true">
-      
-      </svg>
-    </div>
-
-    <!-- Layer 2: Animation SVG (strokes controlled by JS) -->
-    <div class="layer layer-anim">
-      <svg id="anim-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 835.63 1352.64" aria-hidden="true">
-      
-      </svg>
-    </div>
-
-    <!-- Layer 3: Practice SVG (interactive tracing overlay) -->
-    <div class="layer layer-practice" id="practice-layer">
-      <svg id="practice-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 835.63 1352.64" aria-label="手寫練習區">
-        <g id="practice-hint-layer"></g>
-        <g id="practice-ink-layer"></g>
-      </svg>
-    </div>
-    <div class="practice-error" id="practice-error" role="status" aria-live="polite"></div>
-
-    <!-- Layer 4: Design PNG (on top, pointer-events:none) -->
-    <div class="layer layer-design">
-      <img id="design-image" src="Stroke_Template_color.png" alt="">
-    </div>
-
-    <!-- Done overlay -->
-    <div class="done-banner" id="done-banner">
-      <div class="done-romanization" id="done-romanization">tshit-thô</div>
-      <div class="done-title" id="done-title">𨑨迌</div>
-      <div class="done-sub" id="done-sub">遊玩・出去玩</div>
-    </div>
-
-  </div><!-- /.card-aspect -->
-</div><!-- /.card-wrap -->
-
-<!-- ── Stroke info ──────────────────────────── -->
-<div class="stroke-info" id="stroke-info">
-  <span class="char-label" id="info-char">𨑨迌</span>
-  <span class="progress" id="info-progress">0 / 16 畫</span>
-  <span class="current-char" id="info-current">準備開始</span>
-</div>
-
-<div class="progress-track">
-  <div class="progress-fill" id="progress-fill"></div>
-</div>
-
-<!-- ── Controls ───────────────────────────────── -->
-<div class="controls">
-
-  <!-- Primary mode toggle -->
-  <div class="mode-row">
-    <button class="btn btn-mode active" id="category-teaching" onclick="setCategory('teaching')">教學模式</button>
-    <button class="btn btn-mode"        id="category-writing"  onclick="setCategory('writing')">手寫模式</button>
+<main class="page-body">
+  <div class="section-label">共 10 款詞彙</div>
+  <div class="vocab-grid" id="vocab-grid">
+    <!-- 先插入骨架畫面，JS 載入後替換 -->
   </div>
-
-  <!-- Teaching submodes -->
-  <div class="mode-row" id="teaching-modes">
-    <button class="btn btn-mode active" id="mode-auto" onclick="setMode('auto')">▶ 自動播放</button>
-    <button class="btn btn-mode"        id="mode-step" onclick="setMode('step')">手動逐畫</button>
-  </div>
-
-  <!-- Writing submodes -->
-  <div class="mode-row is-hidden" id="writing-modes">
-    <button class="btn btn-mode active" id="mode-trace" onclick="setMode('trace')">✍ 描紅</button>
-    <button class="btn btn-mode"        id="mode-free"  onclick="setMode('free')">無提示</button>
-  </div>
-
-  <!-- Main buttons -->
-  <div class="btn-row">
-    <button class="btn btn-secondary" id="btn-reset" onclick="resetAll()">重新開始</button>
-    <button class="btn btn-primary" id="btn-play" onclick="togglePlay()">播放</button>
-    <button class="btn btn-secondary" id="btn-step" onclick="stepOne()" disabled>下一畫</button>
-    <button class="btn btn-secondary is-hidden" id="btn-clear-trace" onclick="clearCurrentWritingStroke()">重寫這一畫</button>
-  </div>
-
-  <!-- Speed -->
-  <div class="speed-row">
-    <span class="speed-label">速度</span>
-    <button class="btn btn-speed" onclick="setSpeed('slow')">慢</button>
-    <button class="btn btn-speed active" onclick="setSpeed('normal')">中</button>
-    <button class="btn btn-speed" onclick="setSpeed('fast')">快</button>
-  </div>
-
-</div>
-
-<!-- ── Pronunciation button ──────────────────── -->
-<div class="pronunciation-wrap">
-  <button class="btn-pronunciation" id="btn-pronunciation" onclick="playPronunciation()">
-    <span class="icon-speaker" id="speaker-icon">🔊</span>
-    <span class="pron-text">
-      <span class="pron-main">𨑨迌</span>
-      <span class="pron-sub">tshit-thô・聽發音</span>
-    </span>
-  </button>
-</div>
-
-<!-- Audio element -->
-<audio id="pronunciation-audio" src="13522(1).mp3" preload="auto"></audio>
+</main>
 
 <script>
+  const grid = document.getElementById('vocab-grid');
 
-  /* ── Constants ──────────────────────────── */
-  // Content package: add future vocabulary objects with the same shape.
-  const CURRENT_VOCABULARY = {
-    id: 'tshit-tho',
-    text: '𨑨迌',
-    romanization: 'tshit-thô',
-    meaning: '遊玩・出去玩',
-    audioSrc: '13522(1).mp3',
-    designImageSrc: 'Stroke_Template_color.png',
-    viewBox: '0 0 835.63 1352.64',
-    characters: [
-      { char: '𨑨', romanization: 'tshit' },
-      { char: '迌', romanization: 'thô' },
-    ],
-    strokes: [
-      { id: 'c1s1', charIndex: 0, strokeNumber: 1, d: 'M338.85,387.75l-1,37v90c-11,24,0,56,11,57,1-15,23-10,53-8v-281l5-44c-13-12-27-15-37-15-22,0-41,14-42,31,12-3,1,26,10,43,3,7,0,91,1,90Z' },
-      { id: 'c1s2', charIndex: 0, strokeNumber: 2, fold: true, d: 'M388.85,236.75l-2,61h178v200.29c0,.47-.06.94-.19,1.39l-14.44,52.16c-1.69,6.1,2.87,12.14,9.2,12.19,12.84.11,18.75.63,23.43,2.97,36,24,85-10,61-53-1-3-7-9-15-6,5-4,12-2,14,0,0-8-8-12-13-12v-200c3-5,4-10,2-16,3,2,5,8,5,8,16-20-2-61-41-61-10,0-22,3-35,10-49,3-109,3-172,0Z' },
-      { id: 'c1s3', charIndex: 0, strokeNumber: 3, d: 'M390.85,364.75c-36,7-70,29-85,40-2,2-2,5,1,7,17,12,19,26,20,27,1,6,5,5,7,3,7-4,34-20,54-25,41-9,82,6,115,16,25,6,52,11,78,12,36,0,58-9,70-12,5-2,8-8,7-14-3-22,5-37,15-69,2-5-3-11-8-8l-30,15c-7,4-24,14-55,19-61,7-119-26-189-11Z' },
-      { id: 'c1s4', charIndex: 0, strokeNumber: 4, d: 'M568.85,563.75l12-68h-181v68c67,2,168,0,169,0Z' },
-      { id: 'c1s5', charIndex: 0, strokeNumber: 5, d: 'M202.85,282.75c1,20,19,37,38,38,16,0,43-12,38-29,4,2,5,8,5,8,11-11,13-50-23-64-28-11-69,11-69,16,17-1,9,12,11,31Z' },
-      { id: 'c1s6', charIndex: 0, strokeNumber: 6, d: 'M177.85,360.75c-22,50,42,87,76,52,2-2,4-5,7-5,2,1,5,7,4,7,13-4,22-50-5-73-31-26-79-7-83,15,1-2,10-10,18-3-9-1-17,6-17,7Z' },
-      { id: 'c1s7', charIndex: 0, strokeNumber: 7, fold: true, d: 'M221.85,563.75l66,5c0-6-8-53,0-86,6-6,16-15,20-22,4-9,1-11-6-16-3-2-9-8-12-12-3-5-9-7-13-2-19,26-55,24-81,14-9-2-36-21-39-4,1,13,1,34,0,48-3,21,23,22,38,22,9,1,20,0,30-1,3,25,0,49-3,54Z' },
-      { id: 'c1s8', charIndex: 0, strokeNumber: 8, d: 'M286.85,560.75c-11-26-42-25-55-12-33,33-64,37-81,41-5,1-8,10-5,14,9,12,19,48,19,68,0,8,12,10,20,8,9-1,20-8,28-13,28-18,40-36,54-51,53,67,158,78,240,70,52-6,126-27,158-13,5,1,7-2,8-7l20-84c-57-15-113,27-215,39-53,6-166-2-191-60Z' },
-      { id: 'c2s1', charIndex: 1, strokeNumber: 1, d: 'M407.94,792.01v-80c-9-7-22-12-36-12-17,0-34,7-41,26,19-3,2,21,15,40,2,22,0,45,1,72-1,36,1,64,1,98,0,51-30,59-46,58-4,0-6,4-4,7,15,18,28,40,31,56,4,5,10,7,15,6,36-9,66-40,66-77,0-24-2-129-2-130v-42c0,2,0-78,0-22Z' },
-      { id: 'c2s2', charIndex: 1, strokeNumber: 2, fold: true, d: 'M630.94,952.01v-179c4-6,6-12,3-18,4,1,5,7,5,7,15-18,0-60-42-60-11,0-24,5-34,10-50,4-116,2-169-1l-1,61h175v135l1,26-3,54c-5,2-12,2-22-1-42-13-101,3-87,19,19,22,20,40,19,49,0,6,0,13,5,11,94-34,78,1,123-11,16-4,27-19,27-35l-1-16c0-14,1-51,1-51Z' },
-      { id: 'c2s3', charIndex: 1, strokeNumber: 3, d: 'M376.94,865.01c20-1,62-17,107-21,31-2,64,6,86,14v-41c-3,0-51-18-108-13-33,2-48,6-86,4-29-2-40,0-60-16-2-2-4,1-3,3,11,24,18,42,19,56,0,5,4,9,9,11,4,2,21,4,36,3Z' },
-      { id: 'c2s4', charIndex: 1, strokeNumber: 4, d: 'M578.94,947.01c31,5,56,5,65,3,6,0,11-6,12-11,1-14,9-41,16-55,3-4-3-8-7-6-14,7-44,23-80,20-26-2-60-13-86-14-46-3-93,13-96,15l-4,46c30-15,63-24,96-20,28,5,71,20,84,22Z' },
-      { id: 'c2s5', charIndex: 1, strokeNumber: 5, d: 'M200.94,759.01c1,21,19,38,38,38,16,1,43-11,39-29,3,2,4,8,4,8,11-10,13-49-23-63-28-11-69,11-69,16,17-1,9,12,11,30Z' },
-      { id: 'c2s6', charIndex: 1, strokeNumber: 6, d: 'M175.94,839.01c-22,50,42,87,76,52,2-2,4-5,7-5,2,1,5,7,4,7,13-4,22-50-5-73-31-26-79-7-83,15,1-2,10-10,18-3-9-1-16,6-17,7Z' },
-      { id: 'c2s7', charIndex: 1, strokeNumber: 7, fold: true, d: 'M219.94,1041.01l66,5c0-6-8-53,0-86,6-6,16-15,20-22,4-9,1-11-6-16-3-2-9-8-12-12-3-5-9-7-13-2-19,26-55,24-81,14-9-2-36-21-39-4,1,13,1,34,0,48-3,21,23,22,38,22,9,1,20,0,30-1,3,25,0,49-3,54Z' },
-      { id: 'c2s8', charIndex: 1, strokeNumber: 8, d: 'M284.94,1038.01c-11-26-42-25-55-12-33,33-64,37-81,41-5,1-8,10-5,14,9,12,19,48,19,68,0,8,12,10,20,8,9-1,20-8,28-13,28-18,40-36,54-51,53,67,158,78,240,70,52-6,126-27,158-13,5,1,7-2,8-7l20-84c-57-15-113,27-215,39-53,6-166-2-191-60Z' },
-    ],
-  };
-  const TOTAL = CURRENT_VOCABULARY.strokes.length;
-  const SPEEDS = { slow: 1500, normal: 850, fast: 380 };
-  const INK_COLOR   = '#1a1a2e';   // final settled ink
-  const BRUSH_COLOR = '#8a8a9c';   // faded pre-dry dark (淡黑)
-  const CLIP_PAD    = 12;
+  /* 先顯示骨架畫面 */
+  for (let i = 0; i < 10; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'card-skeleton';
+    sk.innerHTML = '<div class="card-skeleton-inner"></div>';
+    grid.appendChild(sk);
+  }
 
-  // 橫折 proportions — fraction of bounding box
-  // Phase 1 rect height = bb.height × FOLD_H_RATIO  (covers horizontal arm only)
-  // Phase 2 rect        = full width, sweeps top→bottom  (covers entire body)
-  const FOLD_H_RATIO  = 0.24;
-  const FOLD_P1_SPLIT = 0.36; // fraction of total duration for horizontal phase
+  /* 等字型載入後渲染卡片 */
+  document.fonts.ready.then(() => {
+    grid.innerHTML = '';
 
-  /* ── State ──────────────────────────────── */
-  let currentIndex = 0;
-  let isPlaying    = false;
-  let mode         = 'auto';
-  let lastTeachingMode = 'auto';
-  let lastWritingMode  = 'trace';
-  let speed        = SPEEDS.normal;
-  let autoTimer    = null;
-  let activeTracePath = null;
-  let activeTracePoints = [];
-  let activePointerId = null;
-  let practiceHintPath = null;
-  let practiceErrorTimer = null;
+    VOCABULARIES.forEach(v => {
+      const a = document.createElement('a');
+      a.href = 'writing.html?v=' + v.id;
+      a.className = 'vocab-card';
 
-  /* ── Vocabulary rendering ──────────────── */
-  function renderVocabulary(vocabulary) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const guideSvg = document.querySelector('.layer-guide svg');
-    const animSvg = document.getElementById('anim-svg');
-    const practiceSvgNode = document.getElementById('practice-svg');
+      a.innerHTML = `<img src="${v.designImageSrc}" alt="${v.text}" loading="lazy" decoding="async">`;
 
-    [guideSvg, animSvg, practiceSvgNode].forEach(svg => svg.setAttribute('viewBox', vocabulary.viewBox));
-    guideSvg.replaceChildren();
-    animSvg.replaceChildren();
-
-    vocabulary.strokes.forEach(stroke => {
-      const guidePath = document.createElementNS(ns, 'path');
-      guidePath.setAttribute('class', 'guide-path');
-      guidePath.setAttribute('d', stroke.d);
-      guideSvg.appendChild(guidePath);
-
-      const animPath = document.createElementNS(ns, 'path');
-      animPath.setAttribute('class', 'stroke-path');
-      animPath.setAttribute('id', stroke.id);
-      animPath.setAttribute('data-char-index', stroke.charIndex);
-      animPath.setAttribute('data-stroke', stroke.strokeNumber);
-      if (stroke.fold) animPath.setAttribute('data-fold', 'true');
-      animPath.setAttribute('d', stroke.d);
-      animSvg.appendChild(animPath);
+      grid.appendChild(a);
     });
-
-    document.getElementById('font-probe').textContent = vocabulary.text;
-    document.getElementById('info-char').textContent = vocabulary.text;
-    document.getElementById('done-title').textContent = vocabulary.text;
-    document.getElementById('done-romanization').textContent = vocabulary.romanization;
-    document.getElementById('done-sub').textContent = vocabulary.meaning;
-    document.querySelector('.pron-main').textContent = vocabulary.text;
-    document.querySelector('.pron-sub').textContent = vocabulary.romanization + '・聽發音';
-    document.getElementById('design-image').src = vocabulary.designImageSrc;
-    document.getElementById('pronunciation-audio').src = vocabulary.audioSrc;
-  }
-
-  renderVocabulary(CURRENT_VOCABULARY);
-
-  /* ── DOM refs ───────────────────────────── */
-  const allPaths      = [...document.querySelectorAll('.stroke-path')];
-  const btnPlay       = document.getElementById('btn-play');
-  const btnStep       = document.getElementById('btn-step');
-  const infoProgress  = document.getElementById('info-progress');
-  const infoCurrent   = document.getElementById('info-current');
-  const progressFill  = document.getElementById('progress-fill');
-  const doneBanner    = document.getElementById('done-banner');
-  const practiceLayer = document.getElementById('practice-layer');
-  const practiceSvg   = document.getElementById('practice-svg');
-  const hintLayer     = document.getElementById('practice-hint-layer');
-  const inkLayer      = document.getElementById('practice-ink-layer');
-  const btnClearTrace = document.getElementById('btn-clear-trace');
-  const practiceError = document.getElementById('practice-error');
-  const speedRow      = document.querySelector('.speed-row');
-
-  /* ── Easing ─────────────────────────────── */
-  function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
-
-  /* ── Setup: simple directional clip ─────── */
-  function setupSimpleClip(path, defs, ns, bb) {
-    const isH = bb.width > bb.height * 1.35;
-    const cp  = document.createElementNS(ns, 'clipPath');
-    cp.id     = 'clip-' + path.id;
-    const r   = document.createElementNS(ns, 'rect');
-
-    if (isH) {
-      r.setAttribute('x',      bb.x);
-      r.setAttribute('y',      bb.y - CLIP_PAD);
-      r.setAttribute('width',  0);
-      r.setAttribute('height', bb.height + CLIP_PAD * 2);
-      path._animProp  = 'width';
-      path._animFinal = bb.width + CLIP_PAD;
-    } else {
-      r.setAttribute('x',      bb.x - CLIP_PAD);
-      r.setAttribute('y',      bb.y);
-      r.setAttribute('width',  bb.width + CLIP_PAD * 2);
-      r.setAttribute('height', 0);
-      path._animProp  = 'height';
-      path._animFinal = bb.height + CLIP_PAD;
-    }
-    cp.appendChild(r);
-    defs.appendChild(cp);
-    path.setAttribute('clip-path', `url(#clip-${path.id})`);
-    path._clipRect = r;
-    path._bbox     = bb;  // for practice-mode hit detection
-    path.style.fill = INK_COLOR;
-  }
-
-  /* ── Setup: two-phase clip for 橫折/橫折鉤 ── */
-  function setupFoldClip(path, defs, ns, bb) {
-    const cp = document.createElementNS(ns, 'clipPath');
-    cp.id    = 'clip-' + path.id;
-
-    // "Flat" = wider than tall → 橫臂在 bbox 底部，Phase 2 由下往上掃
-    // "Tall" = 高挑        → 橫臂在 bbox 頂部，Phase 2 由上往下掃 (月/日 類)
-    const isFlat = bb.width > bb.height * 1.2;
-    const hRatio = isFlat ? 0.44 : FOLD_H_RATIO;
-    const armH   = bb.height * hRatio + CLIP_PAD * 2;
-
-    // Rect A — 橫臂，動畫: width 0 → full
-    const rA = document.createElementNS(ns, 'rect');
-    rA.setAttribute('x',     bb.x - CLIP_PAD);
-    rA.setAttribute('width', 0);
-    rA.setAttribute('height', armH);
-    // 扁形筆畫: 橫臂在底部；高挑筆畫: 橫臂在頂部
-    rA.setAttribute('y', isFlat
-      ? bb.y + bb.height * (1 - hRatio) - CLIP_PAD   // 底部
-      : bb.y - CLIP_PAD);                             // 頂部
-
-    // Rect B — 字身，全寬，動畫: 扁形由下往上，高挑由上往下
-    const rB = document.createElementNS(ns, 'rect');
-    rB.setAttribute('x',     bb.x - CLIP_PAD);
-    rB.setAttribute('width', bb.width + CLIP_PAD * 2);
-    const rBBottom = bb.y + bb.height + CLIP_PAD;  // 固定底緣（BTT 用）
-    if (isFlat) {
-      rB.setAttribute('y',      rBBottom);  // 從底部開始，height=0 往上展
-      rB.setAttribute('height', 0);
-    } else {
-      rB.setAttribute('y',      bb.y - CLIP_PAD);
-      rB.setAttribute('height', 0);
-    }
-
-    cp.appendChild(rA);
-    cp.appendChild(rB);
-    defs.appendChild(cp);
-    path.setAttribute('clip-path', `url(#clip-${path.id})`);
-    path._isFold       = true;
-    path._foldIsFlat   = isFlat;
-    path._foldRectA    = rA;
-    path._foldRectB    = rB;
-    path._foldRectBBot = rBBottom;
-    path._foldMaxW     = bb.width  + CLIP_PAD * 2;
-    path._foldMaxH     = bb.height + CLIP_PAD * 2;
-    path._bbox         = bb;      // for practice-mode hit detection
-    path.style.fill    = INK_COLOR;
-  }
-
-  /* ── Build all clips after layout ───────── */
-  function setupClipPaths() {
-    const svg = document.getElementById('anim-svg');
-    const ns  = 'http://www.w3.org/2000/svg';
-    let defs  = svg.querySelector('defs');
-    if (!defs) {
-      defs = document.createElementNS(ns, 'defs');
-      svg.insertBefore(defs, svg.firstChild);
-    }
-    allPaths.forEach(p => {
-      const bb = p.getBBox();
-      if (p.dataset.fold === 'true') setupFoldClip(p, defs, ns, bb);
-      else                            setupSimpleClip(p, defs, ns, bb);
-    });
-  }
-
-  /* ── Helpers ────────────────────────────── */
-  function getPath(index) {
-    const stroke = CURRENT_VOCABULARY.strokes[index];
-    return stroke ? document.getElementById(stroke.id) : null;
-  }
-
-  function charLabel(index) {
-    const stroke = CURRENT_VOCABULARY.strokes[index];
-    const character = CURRENT_VOCABULARY.characters[stroke.charIndex];
-    return character.char + '（' + character.romanization + '）• 第 ' + stroke.strokeNumber + ' 畫';
-  }
-
-  function isWritingMode() {
-    return mode === 'trace' || mode === 'free';
-  }
-
-  function isTraceMode() {
-    return mode === 'trace';
-  }
-
-  function updateUI() {
-    infoProgress.textContent = currentIndex + ' / ' + TOTAL + ' 畫';
-    progressFill.style.width = (currentIndex / TOTAL * 100) + '%';
-    if      (isTraceMode() && currentIndex < TOTAL)
-                                            infoCurrent.textContent = '請描：' + charLabel(currentIndex);
-    else if (mode === 'free' && currentIndex < TOTAL)
-                                            infoCurrent.textContent = '請寫下一畫';
-    else if (currentIndex === 0)        infoCurrent.textContent = '準備開始';
-    else if (currentIndex >= TOTAL)     infoCurrent.textContent = '完成！';
-    else                                infoCurrent.textContent = charLabel(currentIndex - 1);
-    btnPlay.textContent = isPlaying ? '暫停' : '播放';
-    btnPlay.disabled    = currentIndex >= TOTAL;
-    btnStep.disabled    = mode !== 'step' || currentIndex >= TOTAL;
-  }
-
-  /* ── Animate: simple directional sweep ── */
-  function animateSimple(path, onComplete) {
-    const rect = path._clipRect;
-    const prop = path._animProp;
-    const end  = path._animFinal;
-    const dur  = Math.round(speed * 0.72);
-
-    path.style.transition = 'none';
-    path.style.fill       = BRUSH_COLOR;
-    const t0 = performance.now();
-
-    (function tick(now) {
-      const p = Math.min((now - t0) / dur, 1);
-      rect.setAttribute(prop, end * easeOutQuart(p));
-      if (p < 1) { requestAnimationFrame(tick); return; }
-      rect.setAttribute(prop, end);
-      path.style.transition = `fill ${Math.round(dur * 0.5)}ms ease`;
-      path.style.fill = INK_COLOR;
-      onComplete?.();
-    })(performance.now());
-  }
-
-  /* ── Animate: 橫折 two-phase sweep ───────
-     Phase 1 (0 → FOLD_P1_SPLIT): horizontal arm sweeps left→right
-     Phase 2 (FOLD_P1_SPLIT → 1):  vertical arm sweeps top→bottom   */
-  function animateFold(path, onComplete) {
-    const rA   = path._foldRectA;
-    const rB   = path._foldRectB;
-    const maxW = path._foldMaxW;
-    const maxH = path._foldMaxH;
-    const dur  = Math.round(speed * 0.82); // slightly longer for two phases
-    const sp   = FOLD_P1_SPLIT;
-
-    path.style.transition = 'none';
-    path.style.fill       = BRUSH_COLOR;
-    const t0 = performance.now();
-
-    const isFlat = path._foldIsFlat;
-    const bot    = path._foldRectBBot;
-
-    (function tick(now) {
-      const p = Math.min((now - t0) / dur, 1);
-
-      if (p <= sp) {
-        // Phase 1: 橫臂 left→right
-        rA.setAttribute('width', maxW * easeOutQuart(p / sp));
-      } else {
-        rA.setAttribute('width', maxW);
-        const p2 = easeOutQuart((p - sp) / (1 - sp));
-        if (isFlat) {
-          // Phase 2: 由下往上掃（BTT）— y 往上移，底緣固定
-          const h = maxH * p2;
-          rB.setAttribute('y',      bot - h);
-          rB.setAttribute('height', h);
-        } else {
-          // Phase 2: 由上往下掃（TTB）
-          rB.setAttribute('height', maxH * p2);
-        }
-      }
-
-      if (p < 1) { requestAnimationFrame(tick); return; }
-      rA.setAttribute('width', maxW);
-      if (isFlat) {
-        rB.setAttribute('y',      bot - maxH);
-        rB.setAttribute('height', maxH);
-      } else {
-        rB.setAttribute('height', maxH);
-      }
-      path.style.transition = `fill ${Math.round(dur * 0.45)}ms ease`;
-      path.style.fill = INK_COLOR;
-      onComplete?.();
-    })(performance.now());
-  }
-
-  /* ── Dispatch ────────────────────────────── */
-  function revealStroke(index, onComplete) {
-    const path = getPath(index);
-    if (!path) { onComplete?.(); return; }
-    currentIndex = index + 1;
-    updateUI();
-    if (path._isFold) animateFold(path, onComplete);
-    else              animateSimple(path, onComplete);
-  }
-
-  /* ── Practice mode: hint + tracing overlay ─ */
-  function showPracticeHint(index) {
-    clearPracticeHint();
-    if (!isTraceMode()) return;
-    if (index >= TOTAL) return;
-    const source = getPath(index);
-    if (!source) return;
-    practiceHintPath = source.cloneNode(false);
-    practiceHintPath.removeAttribute('id');
-    practiceHintPath.removeAttribute('clip-path');
-    practiceHintPath.removeAttribute('style');
-    practiceHintPath.setAttribute('class', 'practice-hint-path');
-    hintLayer.appendChild(practiceHintPath);
-    infoCurrent.textContent = '請描：' + charLabel(index);
-  }
-
-  function clearPracticeHint() {
-    hintLayer.replaceChildren();
-    practiceHintPath = null;
-  }
-
-  function clearCurrentTrace() {
-    activeTracePath = null;
-    activeTracePoints = [];
-    activePointerId = null;
-    inkLayer.replaceChildren();
-  }
-
-  function resetStrokeVisual(path) {
-    path.style.transition = 'none';
-    path.style.fill = INK_COLOR;
-    if (path._isFold) {
-      path._foldRectA.setAttribute('width', 0);
-      if (path._foldIsFlat) {
-        path._foldRectB.setAttribute('y', path._foldRectBBot);
-        path._foldRectB.setAttribute('height', 0);
-      } else {
-        path._foldRectB.setAttribute('height', 0);
-      }
-    } else if (path._clipRect) {
-      path._clipRect.setAttribute(path._animProp, 0);
-    }
-  }
-
-  function clearCurrentWritingStroke() {
-    if (!isWritingMode()) return;
-
-    // If the learner is still drawing, erase that live attempt first.
-    if (activeTracePoints.length > 0) {
-      clearCurrentTrace();
-      return;
-    }
-
-    // After a stroke has already been accepted, "clear this stroke" means undo
-    // the most recently completed stroke so it can be written again.
-    if (currentIndex === 0) return;
-    doneBanner.classList.remove('show');
-    currentIndex -= 1;
-    resetStrokeVisual(getPath(currentIndex));
-    clearCurrentTrace();
-    clearPracticeHint();
-    if (isTraceMode()) showPracticeHint(currentIndex);
-    updateUI();
-  }
-
-  function svgPointFromEvent(e) {
-    const pt = practiceSvg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    return pt.matrixTransform(practiceSvg.getScreenCTM().inverse());
-  }
-
-  function appendTracePoint(point) {
-    activeTracePoints.push(point);
-    const d = activeTracePoints
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-      .join(' ');
-    activeTracePath.setAttribute('d', d);
-  }
-
-  function traceDistance(points) {
-    let total = 0;
-    for (let i = 1; i < points.length; i++) {
-      total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-    }
-    return total;
-  }
-
-  function showPracticeError(message) {
-    clearTimeout(practiceErrorTimer);
-    practiceError.textContent = message;
-    practiceError.classList.add('show');
-    practiceErrorTimer = setTimeout(() => practiceError.classList.remove('show'), 1100);
-  }
-
-  function bboxContainsPoint(bb, point, pad = 0) {
-    return point.x >= bb.x - pad &&
-           point.x <= bb.x + bb.width + pad &&
-           point.y >= bb.y - pad &&
-           point.y <= bb.y + bb.height + pad;
-  }
-
-  function pointHitsStroke(path, point, pad = 18) {
-    return Boolean(path?.isPointInFill?.(point)) ||
-           Boolean(path?._bbox && bboxContainsPoint(path._bbox, point, pad));
-  }
-
-  function strokeIndexAtPoint(point) {
-    // Prefer exact SVG fill hit-testing. The padded bbox fallback keeps interaction forgiving
-    // when a finger lands just outside the visible glyph edge.
-    for (let i = 0; i < allPaths.length; i++) {
-      const path = getPath(i);
-      if (!path) continue;
-      if (path.isPointInFill?.(point)) return i;
-    }
-    for (let i = 0; i < allPaths.length; i++) {
-      const path = getPath(i);
-      if (path?._bbox && bboxContainsPoint(path._bbox, point, 18)) return i;
-    }
-    return -1;
-  }
-
-  function completePracticeStroke() {
-    // v0 only confirms that the learner actually dragged a visible stroke.
-    // Shape / direction validation can be inserted here later without changing the UI flow.
-    if (activeTracePoints.length < 2 || traceDistance(activeTracePoints) < 18) {
-      clearCurrentTrace();
-      return;
-    }
-
-    const completedIndex = currentIndex;
-    clearCurrentTrace();
-    clearPracticeHint();
-    revealStroke(completedIndex, () => {
-      if (currentIndex >= TOTAL) {
-        setTimeout(() => { doneBanner.classList.add('show'); playPronunciation(); }, 700);
-        return;
-      }
-      if (isTraceMode()) showPracticeHint(currentIndex);
-      else updateUI();
-    });
-  }
-
-  practiceSvg.addEventListener('pointerdown', e => {
-    if (!isWritingMode() || currentIndex >= TOTAL) return;
-    e.preventDefault();
-    const startPoint = svgPointFromEvent(e);
-    const expectedPath = getPath(currentIndex);
-    if (!pointHitsStroke(expectedPath, startPoint)) {
-      const touchedStrokeIndex = strokeIndexAtPoint(startPoint);
-      const expectedStroke = CURRENT_VOCABULARY.strokes[currentIndex].strokeNumber;
-      const message = touchedStrokeIndex === -1
-        ? '請從第 ' + expectedStroke + ' 畫開始'
-        : '筆順錯誤，請先描第 ' + expectedStroke + ' 畫';
-      showPracticeError(message);
-      clearCurrentTrace();
-      return;
-    }
-    clearCurrentTrace();
-    activePointerId = e.pointerId;
-    practiceSvg.setPointerCapture(e.pointerId);
-    activeTracePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    activeTracePath.setAttribute('class', 'practice-trace-path');
-    inkLayer.appendChild(activeTracePath);
-    appendTracePoint(startPoint);
-  });
-
-  practiceSvg.addEventListener('pointermove', e => {
-    if (!isWritingMode() || e.pointerId !== activePointerId || !activeTracePath) return;
-    e.preventDefault();
-    appendTracePoint(svgPointFromEvent(e));
-  });
-
-  function finishPracticePointer(e) {
-    if (!isWritingMode() || e.pointerId !== activePointerId || !activeTracePath) return;
-    e.preventDefault();
-    practiceSvg.releasePointerCapture?.(e.pointerId);
-    completePracticeStroke();
-  }
-
-  practiceSvg.addEventListener('pointerup', finishPracticePointer);
-  practiceSvg.addEventListener('pointercancel', e => {
-    if (e.pointerId !== activePointerId) return;
-    clearCurrentTrace();
-  });
-
-  /* ── Auto play ──────────────────────────── */
-  function scheduleNext() {
-    if (currentIndex >= TOTAL) {
-      isPlaying = false;
-      updateUI();
-      setTimeout(() => { doneBanner.classList.add('show'); playPronunciation(); }, 2000);
-      return;
-    }
-    revealStroke(currentIndex);
-    autoTimer = setTimeout(() => { if (isPlaying) scheduleNext(); }, speed);
-  }
-
-  function togglePlay() {
-    if (currentIndex >= TOTAL) return;
-    if (isPlaying) { isPlaying = false; clearTimeout(autoTimer); }
-    else           { isPlaying = true;  scheduleNext(); }
-    updateUI();
-  }
-
-  /* ── Step mode ──────────────────────────── */
-  function stepOne() {
-    if (currentIndex >= TOTAL) return;
-    revealStroke(currentIndex, () => {
-      if (currentIndex >= TOTAL)
-        setTimeout(() => { doneBanner.classList.add('show'); playPronunciation(); }, 2000);
-    });
-  }
-
-  /* ── Reset ──────────────────────────────── */
-  function resetAll() {
-    isPlaying = false;
-    clearTimeout(autoTimer);
-    currentIndex = 0;
-    doneBanner.classList.remove('show');
-    allPaths.forEach(resetStrokeVisual);
-    clearCurrentTrace();
-    clearPracticeHint();
-    practiceError.classList.remove('show');
-    if (isTraceMode()) showPracticeHint(0);
-    updateUI();
-  }
-
-  /* ── Mode / Speed ───────────────────────── */
-  function setCategory(category) {
-    const nextMode = category === 'teaching' ? lastTeachingMode : lastWritingMode;
-    setMode(nextMode);
-  }
-
-  function setMode(m) {
-    mode = m;
-    if (m === 'auto' || m === 'step') lastTeachingMode = m;
-    if (m === 'trace' || m === 'free') lastWritingMode = m;
-
-    const isTeaching = m === 'auto' || m === 'step';
-    const isWriting  = isWritingMode();
-    isPlaying = false;
-    clearTimeout(autoTimer);
-    document.getElementById('category-teaching').classList.toggle('active', isTeaching);
-    document.getElementById('category-writing').classList.toggle('active', isWriting);
-    document.getElementById('teaching-modes').classList.toggle('is-hidden', !isTeaching);
-    document.getElementById('writing-modes').classList.toggle('is-hidden', !isWriting);
-    document.getElementById('mode-auto').classList.toggle('active', m === 'auto');
-    document.getElementById('mode-step').classList.toggle('active', m === 'step');
-    document.getElementById('mode-trace').classList.toggle('active', m === 'trace');
-    document.getElementById('mode-free').classList.toggle('active', m === 'free');
-    btnPlay.style.display = m === 'auto' ? '' : 'none';
-    btnStep.style.display = m === 'step' ? '' : 'none';
-    btnClearTrace.classList.toggle('is-hidden', !isWriting);
-    practiceLayer.classList.toggle('active', isWriting);
-    speedRow.classList.toggle('is-hidden', isWriting);
-    if (isWriting) {
-      resetAll();
-      if (isTraceMode()) infoCurrent.textContent = '請描：' + charLabel(0);
-      else               infoCurrent.textContent = '請寫下一畫';
-    } else {
-      clearCurrentTrace();
-      clearPracticeHint();
-    }
-    updateUI();
-  }
-
-  function setSpeed(s) {
-    speed = SPEEDS[s];
-    document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
-  }
-
-  /* ── Audio ──────────────────────────────── */
-  const audio       = document.getElementById('pronunciation-audio');
-  const btnPron     = document.getElementById('btn-pronunciation');
-  const speakerIcon = document.getElementById('speaker-icon');
-
-  function playPronunciation() {
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
-  }
-
-  audio.addEventListener('play',  () => { btnPron.classList.add('playing');    speakerIcon.textContent = '🔈'; });
-  audio.addEventListener('ended', () => { btnPron.classList.remove('playing'); speakerIcon.textContent = '🔊'; });
-  audio.addEventListener('pause', () => { btnPron.classList.remove('playing'); speakerIcon.textContent = '🔊'; });
-
-  window.addEventListener('load', () => { playPronunciation(); });
-  document.addEventListener('pointerdown', function firstTouch() {
-    playPronunciation();
-    document.removeEventListener('pointerdown', firstTouch);
-  }, { once: true });
-
-  /* ── Card tap → step ────────────────────── */
-  document.querySelector('.card-aspect').addEventListener('click', () => {
-    if (mode === 'step' && currentIndex < TOTAL) stepOne();
-  });
-
-  /* ── Init ───────────────────────────────── */
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    setupClipPaths();
-    setMode('auto');
-  }));
-
-  /* ── Keyboard ───────────────────────────── */
-  document.addEventListener('keydown', e => {
-    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); mode === 'auto' ? togglePlay() : stepOne(); }
-    if (e.key === 'r' || e.key === 'R') resetAll();
-    if (e.key === 'ArrowRight' && mode === 'step') stepOne();
   });
 </script>
 

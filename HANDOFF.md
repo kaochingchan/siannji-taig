@@ -3,7 +3,7 @@
 
 **日期：** 2026-05-18  
 **階段：** Phase 1 完成（核心動畫驗證）  
-**交付物：** `index.html`（單一檔案，含所有 CSS / JS）
+**交付物：** `writing.html`（單一檔案，含所有 CSS / JS）
 
 ---
 
@@ -27,7 +27,8 @@ Phase 1 的目標是「選 2 個字，完整走完拆筆畫 → SVG → 動畫�
 
 ```
 Stroke_animation_Test/
-├── index.html              ← 主要交付物（所有程式碼在此）
+├── index.html              ← 選單首頁（字帖列表）
+├── writing.html            ← 互動主體（筆畫教學 / 手寫練習）
 ├── Glyphs_01_stroke.svg    ← 字「𨑨」的 8 條筆畫路徑（設計師產出）
 ├── Glyphs_02_stroke.svg    ← 字「迌」的 8 條筆畫路徑（設計師產出）
 ├── Stroke_Template_color.png ← 設計稿裝飾層（透明背景 PNG，966 KB）
@@ -150,7 +151,7 @@ setupFoldClip():
 cd /Users/kaochingchan/Downloads/Stroke_animation_Test
 python3 -m http.server 8080
 # 然後在 Chrome 開啟：
-# http://localhost:8080/index.html
+# http://localhost:8080/
 ```
 
 Safari 不受此限制，可直接雙擊開啟。
@@ -207,7 +208,7 @@ Fallback：PingFang TC → Heiti TC → sans-serif。
 
 | 項目 | 位置 |
 |------|------|
-| 筆畫 path 資料（HTML inline）| `index.html` line ~350–380 |
+| 筆畫 path 資料（HTML inline）| `writing.html` line ~350–380 |
 | clipPath 動畫引擎 | `setupSimpleClip()`、`setupFoldClip()` |
 | 動畫播放邏輯 | `animateSimple()`、`animateFold()` |
 | 速度 / 時間常數 | `const SPEEDS`、`dur = speed × 0.72` |
